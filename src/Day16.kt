@@ -3,18 +3,18 @@ fun main() {
         return Packet.parse(input.toBits()).first.versionSum
     }
 
-    fun part2(input: List<String>): Int {
-        return input.size
+    fun part2(input: List<String>): Long {
+        val (packet, _) = Packet.parse(input.toBits())
+        return packet.value
     }
 
     // test if implementation meets criteria from the description, like:
     val testInput = readInput("Day16_test")
     val input = readInput("Day16")
-    check(part1(testInput) == 31)
     println(part1(input))
 
-//    check(part2(testInput) == 5)
-//    println(part2(input))
+    check(part2(testInput) == 1L)
+    println(part2(input))
 }
 
 private fun List<String>.toBits() = single().map {
@@ -26,6 +26,8 @@ private sealed interface Packet {
     val version: Int
 
     val versionSum: Int
+
+    val value: Long
 
     companion object {
         fun parse(str: String): Pair<Packet, String> {
@@ -45,7 +47,7 @@ private sealed interface Packet {
     }
 }
 
-private class LiteralPacket(override val version: Int, private val value: Long) : Packet {
+private class LiteralPacket(override val version: Int, override val value: Long) : Packet {
     override val versionSum: Int
         get() = version
 
@@ -66,7 +68,7 @@ private class LiteralPacket(override val version: Int, private val value: Long) 
     }
 }
 
-private class OperatorPacket(override val version: Int, private val subPackages: List<Packet>) : Packet {
+private sealed class OperatorPacket(override val version: Int, protected val subPackages: List<Packet>) : Packet {
     override val versionSum: Int
         get() = version + subPackages.sumOf { it.versionSum }
 
@@ -84,15 +86,16 @@ private class OperatorPacket(override val version: Int, private val subPackages:
         private fun parseMode0(version: Int, typeId: Int, str: String): Pair<OperatorPacket, String> {
             val lengthInBit = str.take(15).toInt(2)
             var remainStr = str.drop(15)
+            val lengthBeforeParse = remainStr.length
             val subPackages = mutableListOf<Packet>()
 
-            while (str.length - remainStr.length < lengthInBit) {
+            while (lengthBeforeParse - remainStr.length < lengthInBit) {
                 val (packet, newRemainStr) = Packet.parse(remainStr)
                 subPackages.add(packet)
                 remainStr = newRemainStr
             }
 
-            return OperatorPacket(version, subPackages) to remainStr
+            return getOperatorPacket(version, typeId, subPackages, remainStr)
         }
 
         private fun parseMode1(version: Int, typeId: Int, str: String): Pair<OperatorPacket, String> {
@@ -106,10 +109,76 @@ private class OperatorPacket(override val version: Int, private val subPackages:
                 remainStr = newRemainStr
             }
 
-            return OperatorPacket(version, subPackages) to remainStr
+            return getOperatorPacket(version, typeId, subPackages, remainStr)
+        }
+
+        private fun getOperatorPacket(
+            version: Int,
+            typeId: Int,
+            subPackages: List<Packet>,
+            remainStr: String
+        ): Pair<OperatorPacket, String> {
+            val operatorPacket = when (typeId) {
+                0 -> SumOperatorPacket(version, subPackages)
+                1 -> ProductOperatorPacket(version, subPackages)
+                2 -> MinimumOperatorPacket(version, subPackages)
+                3 -> MaximumOperatorPacket(version, subPackages)
+                5 -> GreaterThanOperatorPacket(version, subPackages)
+                6 -> LessThanOperatorPacket(version, subPackages)
+                7 -> EqualToOperatorPacket(version, subPackages)
+                else -> error(typeId)
+            }
+
+            return operatorPacket to remainStr
         }
     }
 }
 
 
+private class SumOperatorPacket(version: Int, subPackages: List<Packet>) : OperatorPacket(version, subPackages) {
+    override val value: Long
+        get() = subPackages.sumOf { it.value }
+}
 
+private class ProductOperatorPacket(version: Int, subPackages: List<Packet>) : OperatorPacket(version, subPackages) {
+    override val value: Long
+        get() = subPackages.fold(1L) { acc, packet ->
+            acc * packet.value
+        }
+}
+
+private class MinimumOperatorPacket(version: Int, subPackages: List<Packet>) : OperatorPacket(version, subPackages) {
+    override val value: Long
+        get() = subPackages.minOf { it.value }
+}
+
+private class MaximumOperatorPacket(version: Int, subPackages: List<Packet>) : OperatorPacket(version, subPackages) {
+    override val value: Long
+        get() = subPackages.maxOf { it.value }
+}
+
+private class GreaterThanOperatorPacket(
+    version: Int, subPackages: List<Packet>
+) : OperatorPacket(version, subPackages) {
+    override val value: Long
+        get() {
+            val (first, second) = subPackages
+            return if (first.value > second.value) 1 else 0
+        }
+}
+
+private class LessThanOperatorPacket(version: Int, subPackages: List<Packet>) : OperatorPacket(version, subPackages) {
+    override val value: Long
+        get() {
+            val (first, second) = subPackages
+            return if (first.value < second.value) 1 else 0
+        }
+}
+
+private class EqualToOperatorPacket(version: Int, subPackages: List<Packet>) : OperatorPacket(version, subPackages) {
+    override val value: Long
+        get() {
+            val (first, second) = subPackages
+            return if (first.value == second.value) 1 else 0
+        }
+}
