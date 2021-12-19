@@ -8,21 +8,23 @@ fun main() {
     fun part2(scannerPoints: Set<Point>): Int {
         return scannerPoints.map { first ->
             scannerPoints.map { second ->
-                abs(first.x - second.x) + abs(first.y - second.y) + abs(first.z - second.z)
+                first.distance(second)
             }
         }.flatten().maxOf { it }
     }
 
     fun solve(input: List<String>): Pair<Int, Int> {
-        var scanners = input.toScanners()
-        // All beacons absolute position will be expressed relative to first scanner
+        var originalScanners = input.toScanners()
+        // All points absolute position will be expressed relative to first scanner
+        // Meaning, first scanner will be point (0,0,0), and other point will be mapped
+        // to its orientation and facing direction.
         val beacons = mutableSetOf<Point>()
+        beacons.addAll(originalScanners.first())
         val scannerPoints = mutableSetOf<Point>()
-        beacons.addAll(scanners.first())
 
-        scanners = scanners.drop(1)
-        while (scanners.isNotEmpty()) {
-            scanners = scanners.mapNotNull {
+        originalScanners = originalScanners.drop(1)
+        while (originalScanners.isNotEmpty()) {
+            originalScanners = originalScanners.mapNotNull {
                 val (scannerPoint, scannerBeacons) = beacons.toList().overlap(it) ?: return@mapNotNull it
                 beacons.addAll(scannerBeacons)
                 scannerPoints.add(scannerPoint)
@@ -46,6 +48,8 @@ fun main() {
 }
 
 private data class Point(val x: Int, val y: Int, val z: Int)
+
+private fun Point.distance(point: Point) = abs(x - point.x) + abs(y - point.y) + abs(z - point.z)
 
 private typealias Scanner = List<Point>
 
@@ -116,25 +120,25 @@ private fun List<Point>.translate(point: Point) = map {
 
 private fun List<Point>.overlap(scanner: Scanner): Pair<Point, List<Point>>? {
     scanner.toAllOrientations().forEach { orientedScanner ->
-        forEach { firstPivot ->
-            val translatedPointsOnFirstPivot = translate(firstPivot)
-            orientedScanner.forEach { secondPivot ->
-                val translatedPointsOnSecondPivot = orientedScanner.translate(secondPivot)
+        forEach { pointPivot ->
+            val translatedPoints = translate(pointPivot)
+            orientedScanner.forEach { scannerPivot ->
+                val translatedScannerPoints = orientedScanner.translate(scannerPivot)
 
-                val intersections = translatedPointsOnSecondPivot.intersect(translatedPointsOnFirstPivot)
+                val intersections = translatedScannerPoints.intersect(translatedPoints)
                 if (intersections.size >= 12) {
                     // we can conclude that 2 pivot is the same point
                     val scannerPoint = Point(
-                        x = secondPivot.x - firstPivot.x,
-                        y = secondPivot.y - firstPivot.y,
-                        z = secondPivot.z - firstPivot.z,
+                        x = scannerPivot.x - pointPivot.x,
+                        y = scannerPivot.y - pointPivot.y,
+                        z = scannerPivot.z - pointPivot.z,
                     )
 
                     val beacons = orientedScanner.map {
                         Point(
-                            x = it.x - secondPivot.x + firstPivot.x,
-                            y = it.y - secondPivot.y + firstPivot.y,
-                            z = it.z - secondPivot.z + firstPivot.z,
+                            x = it.x - scannerPivot.x + pointPivot.x,
+                            y = it.y - scannerPivot.y + pointPivot.y,
+                            z = it.z - scannerPivot.z + pointPivot.z,
                         )
                     }
 
