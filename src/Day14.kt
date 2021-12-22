@@ -1,10 +1,10 @@
 fun main() {
     fun part1(input: List<String>): Long {
-        return solve(input, 10)
+        return reboot(input, 10)
     }
 
     fun part2(input: List<String>): Long {
-        return solve(input, 40)
+        return reboot(input, 40)
     }
 
     // test if implementation meets criteria from the description, like:
@@ -17,7 +17,7 @@ fun main() {
     println(part2(input))
 }
 
-private fun solve(input: List<String>, times: Int): Long {
+private fun reboot(input: List<String>, times: Int): Long {
     val (template, rulesMap) = input.toTemplateAndRulesMap()
 
     val polymerMap = template.windowed(2)
